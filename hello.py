@@ -14,6 +14,8 @@ from flask import session, redirect, url_for, flash    #
 
 from flask_sqlalchemy import SQLAlchemy      # sqlalchemy数据库框架
 
+from flask_migrate import Migrate, MigrateCommand  # 数据库迁移框架
+
 
 # 数据库在本机的路径
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -42,26 +44,30 @@ manager = Manager(app)
 moment = Moment(app)
 
 
+migrate = Migrate(app, db)
+manager.add_command('db',MigrateCommand)
+
+
 
 #定义Role 和 User 模型
 class Role(db.Model):
-	__tablename__ = 'roles'
-	id = db.Column(db.Integer, primary_key = True)
-	name = db.Column(db.String(64), unique = True)
-	users = db.relationship('User', backref = 'role', lazy = 'dynamic')
+    __tablename__ = 'roles'
+    id = db.Column(db.Integer, primary_key = True)
+    name = db.Column(db.String(64), unique = True)
+    users = db.relationship('User', backref = 'role', lazy = 'dynamic')
 
-	def __repr__(self):
-		return '<Role %r>' % self.name
+    def __repr__(self):
+        return '<Role %r>' % self.name
 
 
 class User(db.Model):
-	__tablename__ = 'users'
-	id = db.Column(db.Integer, primary_key = True)
-	username = db.Column(db.String(64), unique = True, index = True)
-	role_id = db.Column(db.Integer, db.ForeignKey('roles.id'))
+    __tablename__ = 'users'
+    id = db.Column(db.Integer, primary_key = True)
+    username = db.Column(db.String(64), unique = True, index = True)
+    role_id = db.Column(db.Integer, db.ForeignKey('roles.id'))
 
-	def __repr__(self):
-		return '<User %r>' % self.username
+    def __repr__(self):
+        return '<User %r>' % self.username
 
 
 
@@ -78,12 +84,20 @@ class NameForm(FlaskForm):
 def index():
     form = NameForm()
     if form.validate_on_submit():     #如果输入的数据验证通过，validate_on_submit()方法返回True
-        old_name = session.get('name')
-        if old_name is not None and old_name != form.name.data:
-            flash('look like you have changed your name!')
+        user = User.query.filter_by(username = form.name.data).first()
+        if user is None:
+            user = User(username = form.name.data)
+            db.session.add(user)
+            session['known'] = False 
+        else:
+            session['known'] = True
         session['name'] = form.name.data     #赋值给局部变量
-        return redirect(url_for('index'))          
-    return render_template('index.html', form=form, name=session.get('name'))
+        form.name.data = ''
+        return redirect(url_for('index'))     
+    return render_template('index.html', 
+        form=form, name=session.get('name'),
+        known = session.get('known', False))
+
 
 @app.route('/user/<name>')
 def user(name):
@@ -92,7 +106,7 @@ def user(name):
 
 
 if __name__ == '__main__':
-	# 调试模式
+    # 调试模式
  #   app.run(debug =True)
 
     #命令行模式

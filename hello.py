@@ -106,7 +106,7 @@ def user(name):
 
 
 if __name__ == '__main__':
-    # 调试模式
+    
  #   app.run(debug =True)
 
     #命令行模式

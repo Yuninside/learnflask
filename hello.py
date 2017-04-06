@@ -1,26 +1,19 @@
 import os
-from flask import Flask
-from flask import render_template      
+from flask import Flask, render_template, session, redirect, url_for, flash    #   
 from flask_bootstrap import Bootstrap   # 导#入bootstrap 前端框架
-
-from flask_script import Manager   # manager命令行模式
+from flask_script import Manager, Shell # manager命令行模式
 from flask_moment import Moment   #
-
 from flask_wtf import FlaskForm     # 导入扩展模块
 from wtforms import StringField, SubmitField
 from wtforms.validators import Required      # 验证函数，确保字段不为空
-
-from flask import session, redirect, url_for, flash    # 
-
 from flask_sqlalchemy import SQLAlchemy      # sqlalchemy数据库框架
-
 from flask_migrate import Migrate, MigrateCommand  # 数据库迁移框架
+from flask_mail import Mail, Message
 
 
-# 数据库在本机的路径
+
+
 basedir = os.path.abspath(os.path.dirname(__file__))
-
-
 
 app = Flask(__name__)
 
@@ -30,6 +23,22 @@ app.config['SECRET_KEY'] = 'hard to guess string'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'data.sqlite')
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWM'] = True
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
+
+
+# mail配置文件
+app.config['MAIL_SERVER'] = 'stmp.google.com'
+app.config['MAIL_PORT'] = '587'
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+
+app.config['FLASK_MAIL_SUBJECT_PREFIX'] = '[Flask]'
+app.config['FLASK_MAIL_SENDER'] = 'Flask Admin <flask@example.com>'
+
+app.config['FLASK_ADMIN'] = os.environ.get('FLASK_ADMIN')
+
+
+
 
 # 初始化数据库 
 db = SQLAlchemy(app)
@@ -43,9 +52,15 @@ manager = Manager(app)
 # 定义时间
 moment = Moment(app)
 
-
+# 数据库备份
 migrate = Migrate(app, db)
 manager.add_command('db',MigrateCommand)
+
+# 邮件系统
+mail = Mail(app)
+
+
+
 
 
 
@@ -60,10 +75,11 @@ class Role(db.Model):
         return '<Role %r>' % self.name
 
 
+
 class User(db.Model):
     __tablename__ = 'users'
-    id = db.Column(db.Integer, primary_key = True)
-    username = db.Column(db.String(64), unique = True, index = True)
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(64), unique=True, index=True)
     role_id = db.Column(db.Integer, db.ForeignKey('roles.id'))
 
     def __repr__(self):
@@ -71,10 +87,30 @@ class User(db.Model):
 
 
 
+
+
+# 定义发送邮件函数
+def send_email(to, subject, template, **kwargs):
+    msg = Message(app.config['FLASK_MAIL_SUBJECT_PREFIX'] + ' ' + subject,
+                  sender = app.config['FLASK_MAIL_SENDER'], recipients=[to])
+    msg.body = render_template(template + '.txt', **kwargs)
+    msg.html = render_template(template + '.html', **kwargs)
+    mail.send(msg)
+    
+
+
+
 # 表单类
 class NameForm(FlaskForm):
     name = StringField('What is your name?', validators = [Required()])     # 用户可以输入内容的文本框，值被name变量接收
     submit = SubmitField('Submit')     # 提交按钮
+
+
+def make_shell_context():
+    return dict(app=app, db=db, User=User, Role=Role)
+manager.add_command("shell", Shell(make_context=make_shell_context))
+manager.add_command('db', MigrateCommand)
+
 
 
 
@@ -89,10 +125,13 @@ def index():
             user = User(username = form.name.data)
             db.session.add(user)
             session['known'] = False 
+            if app.config['FLASK_ADMIN']:
+                send_email(app.config['FLASK_ADMIN'], 'New User', 
+                           'mail/new_user', user = user)
         else:
             session['known'] = True
         session['name'] = form.name.data     #赋值给局部变量
-        form.name.data = ''
+
         return redirect(url_for('index'))     
     return render_template('index.html', 
         form=form, name=session.get('name'),
@@ -106,10 +145,9 @@ def user(name):
 
 
 if __name__ == '__main__':
-    
- #   app.run(debug =True)
 
-    #命令行模式
+ 
+    #命令行模式启动
     manager.run()
 
     

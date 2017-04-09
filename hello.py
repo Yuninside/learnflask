@@ -8,8 +8,9 @@ from wtforms import StringField, SubmitField
 from wtforms.validators import Required      # 验证函数，确保字段不为空
 from flask_sqlalchemy import SQLAlchemy      # sqlalchemy数据库框架
 from flask_migrate import Migrate, MigrateCommand  # 数据库迁移框架
-from flask_mail import Mail, Message
+from flask_mail import Mail, Message     
 
+from threading import Thread 
 
 
 
@@ -21,23 +22,24 @@ app.config['SECRET_KEY'] = 'hard to guess string'
 
 # 配置一个SQLite数据库
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'data.sqlite')
-app.config['SQLALCHEMY_COMMIT_ON_TEARDOWM'] = True
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
+app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True      #提交记录的设置，see you again 的原因
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+'''    
+# mail配置文件  邮件系统不可用
+app.config['MAIL_SERVER']='stmp.163.com'
+app.config['MAIL_PORT']=465
+app.config['MAIL_USE_SSL'] =True
+app.config['MAIL_USERNAME'] ='13610233769@163.com'  #os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] ='19930924yy' # os.environ.get('MAIL_PASSWORD')
 
 
-# mail配置文件
-app.config['MAIL_SERVER'] = 'stmp.google.com'
-app.config['MAIL_PORT'] = '587'
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
-
-app.config['FLASK_MAIL_SUBJECT_PREFIX'] = '[Flask]'
-app.config['FLASK_MAIL_SENDER'] = 'Flask Admin <flask@example.com>'
+app.config['FLASK_MAIL_SUBJECT_PREFIX'] = '[Yuninside]'  # 主题
+app.config['FLASK_MAIL_SENDER'] = '13610233769@163.com'
 
 app.config['FLASK_ADMIN'] = os.environ.get('FLASK_ADMIN')
 
-
+'''
 
 
 # 初始化数据库 
@@ -62,8 +64,6 @@ mail = Mail(app)
 
 
 
-
-
 #定义Role 和 User 模型
 class Role(db.Model):
     __tablename__ = 'roles'
@@ -72,7 +72,7 @@ class Role(db.Model):
     users = db.relationship('User', backref = 'role', lazy = 'dynamic')
 
     def __repr__(self):
-        return '<Role %r>' % self.name
+        return '<Role %r>' % self.name  # %r 就是S 的repr
 
 
 
@@ -86,17 +86,25 @@ class User(db.Model):
         return '<User %r>' % self.username
 
 
+'''
+
+# 异步发送邮件
+def send_async_email(qpp,msg):
+    with app.app_context():
+        mail.send(msg)
 
 
 
-# 定义发送邮件函数
+# 定义发送邮件函数  send_email 函数参数分别为收件人地址，主题，渲染邮件正文的模板和关键字参数列表
 def send_email(to, subject, template, **kwargs):
     msg = Message(app.config['FLASK_MAIL_SUBJECT_PREFIX'] + ' ' + subject,
                   sender = app.config['FLASK_MAIL_SENDER'], recipients=[to])
     msg.body = render_template(template + '.txt', **kwargs)
     msg.html = render_template(template + '.html', **kwargs)
-    mail.send(msg)
-    
+    thr = Thread(target = send_async_email, args = [app, msg])
+    thr.start()
+    return thr
+'''    
 
 
 
@@ -125,13 +133,16 @@ def index():
             user = User(username = form.name.data)
             db.session.add(user)
             session['known'] = False 
-            if app.config['FLASK_ADMIN']:
+            ''' # 有新用户就发送邮件
+            if app.config['FLASK_ADMIN']: 
                 send_email(app.config['FLASK_ADMIN'], 'New User', 
                            'mail/new_user', user = user)
+            '''
+        
         else:
             session['known'] = True
         session['name'] = form.name.data     #赋值给局部变量
-
+        form.name.data = ''
         return redirect(url_for('index'))     
     return render_template('index.html', 
         form=form, name=session.get('name'),
@@ -145,9 +156,8 @@ def user(name):
 
 
 if __name__ == '__main__':
-
- 
-    #命令行模式启动
+    
+    #命令行模式启动，启动命令： hello.py runserver
     manager.run()
 
     

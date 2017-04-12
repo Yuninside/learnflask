@@ -3,9 +3,9 @@ from flask import current_app
 from app import create_app, db
 
 class BasicsTestCase(unittest.TestCase):
-    def setup(self):
+    def setUp(self):
         self.app = create_app('testing')
-        self.app_context = self.app.app_context
+        self.app_context = self.app.app_context()
         self.app_context.push()
         db.create_all()
 
@@ -19,7 +19,7 @@ class BasicsTestCase(unittest.TestCase):
     def test_app_exists(self):
         self.assertFalse(current_app is None)
 
-    def test_app_exists(self):
+    def test_app_is_testing(self):
         self.assertTrue(current_app.config['TESTING'])
 
         

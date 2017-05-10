@@ -5,6 +5,8 @@ from . import main
 from . forms import NameForm
 from .. import db
 from .. models import User
+from ..email import send_email
+
 
 @ main.route('/', methods = ['GET', 'POST'])
 def index():
@@ -15,6 +17,9 @@ def index():
             user = User(username=form.name.data)
             db.session.add(user)
             session['known'] = False
+            if current_app.config['FLASK_ADMIN']:
+                send_email(current_app.config['FLASK_ADMIN'], 'New User',
+                           'mail/new_user', user=user)
 
         else:
         	session['known'] = True

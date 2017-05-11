@@ -34,7 +34,7 @@ class User(UserMixin, db.Model):
     #下面是密码部分
     password_hash = db.Column(db.String(128))
 
-
+    # 设置只写属性
     @property
     def password(self):
         raise AttributeError('password is a readable attribute')
@@ -42,7 +42,13 @@ class User(UserMixin, db.Model):
     @password.setter
     def password(self, password):
         self.password_hash = generate_password_hash(password)
-
+    
+    #验证密码
     def verify_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+
+#登陆账户 加载用户回调函数
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user.id))

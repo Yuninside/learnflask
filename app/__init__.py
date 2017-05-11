@@ -32,10 +32,12 @@ def  create_app(config_name):
     moment.init_app(app)
     db.init_app(app)
     
-    login_manager.init_app(app)
+    login_manager.init_app(app)   # 登陆账户
 
 
-    # 注册蓝本
+    # 注册蓝本  
+    # 添加路由和自定义的错误页面
+    
     from .main import main as main_blueprint
     app.register_blueprint(main_blueprint)
 
@@ -43,7 +45,6 @@ def  create_app(config_name):
     app.register_blueprint(auth_blueprint, url_perfix = '/auth')
 
 
-     # 添加路由和自定义的错误页面
 
 
     return app

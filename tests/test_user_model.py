@@ -1,3 +1,5 @@
+'''密码散列化测试'''
+
 import unittest
 from app.models import User
 

@@ -21,23 +21,22 @@ class Role(db.Model):
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'
-    id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key = True)
     email = db.Column(db.String(64), unique = True, index = True)
     username = db.Column(db.String(64), unique = True, index = True)
-    password_hash = db.Column(db.String(128))
+    password_hash = db.Column(db.String(128))  #密码
     role_id = db.Column(db.Integer, db.ForeignKey('roles.id'))
+
 
     def __repr__(self):
         return '<User %r>' % self.username
 
 
-    #下面是密码部分
-    password_hash = db.Column(db.String(128))
 
     # 设置只写属性
     @property
     def password(self):
-        raise AttributeError('password is a readable attribute')
+        raise AttributeError('password is not a readable attribute')
 
     @password.setter
     def password(self, password):
@@ -51,4 +50,4 @@ class User(UserMixin, db.Model):
 #登陆账户 加载用户回调函数
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user.id))
+    return User.query.get(int(user_id))

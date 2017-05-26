@@ -14,7 +14,7 @@ bootstrap = Bootstrap()
 moment = Moment()
 db = SQLAlchemy()
 
-# 
+# 用户登陆
 login_manager = LoginManager()
 login_manager.session_protection = 'strong'  #属性可设置为None basic strong 提供不同安全等级
 login_manager.login_view = 'auth.login'
@@ -43,8 +43,6 @@ def  create_app(config_name):
 
     from .auth import auth as auth_blueprint
     app.register_blueprint(auth_blueprint, url_perfix = '/auth')
-
-
 
 
     return app
